@@ -1,0 +1,25 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { ChessEngine, STARTING_FEN, getLegalMoves, parseFEN, toFEN } from '../src/chess-engine.js';
+
+test('starting position has 20 legal moves', () => {
+  const state = parseFEN(STARTING_FEN);
+  assert.equal(getLegalMoves(state).length, 20);
+});
+
+test('makeMove updates the board from e2 to e4', () => {
+  const game = new ChessEngine();
+  const fen = game.makeMove('e2e4');
+  assert.equal(fen.split(' ')[0], 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR');
+  assert.equal(game.state.turn, 'b');
+});
+
+test('detects checkmate in a queen mate scenario', () => {
+  const game = new ChessEngine('7k/5Q2/6K1/8/8/8/8/8 w - - 0 1');
+  assert.equal(game.getStatus(), 'checkmate');
+});
+
+test('toFEN round trip preserves position', () => {
+  const state = parseFEN('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1');
+  assert.equal(toFEN(state), 'r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1');
+});

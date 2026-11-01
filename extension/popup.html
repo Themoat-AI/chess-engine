@@ -1,0 +1,99 @@
+function sanitizeMoves(list) {
+  return list
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(-200);
+}
+
+function lookupBoardState() {
+  const candidates = [
+    '[data-fen]',
+    '[data-board]',
+    '[data-state]',
+    '.cg-board',
+    '.board',
+    '.board-status',
+    '[class*="board"]',
+    '[class*="fen"]'
+  ];
+
+  for (const selector of candidates) {
+    const node = document.querySelector(selector);
+    if (!node) continue;
+
+    const value = node.getAttribute('data-fen') || node.getAttribute('data-state') || node.getAttribute('data-board');
+    if (value && /[rnbqkpRNBQKP1-8]+\/[rnbqkpRNBQKP1-8]+/.test(value)) {
+      return value;
+    }
+  }
+
+  const text = document.body?.innerText || '';
+  const fenMatch = text.match(/[rnbqkpRNBQKP1-8]+\/[rnbqkpRNBQKP1-8]+(?:\/[rnbqkpRNBQKP1-8]+){6}\s+[wb]\s+[KQkq-]+\s+[-a-h0-9]+\s+\d+\s+\d+/i);
+  if (fenMatch) return fenMatch[0];
+
+  const scriptText = Array.from(document.scripts || []).map((s) => s.textContent || '').join(' ');
+  const scriptFen = scriptText.match(/[rnbqkpRNBQKP1-8]+\/[rnbqkpRNBQKP1-8]+(?:\/[rnbqkpRNBQKP1-8]+){6}\s+[wb]\s+[KQkq-]+\s+[-a-h0-9]+\s+\d+\s+\d+/i);
+  if (scriptFen) return scriptFen[0];
+
+  return '';
+}
+
+function lookupMoveHistory() {
+  const selectors = [
+    '.moves',
+    '.move-list',
+    '.game-info',
+    '.movelist',
+    '[class*="moves"]',
+    '[class*="move-list"]',
+    '[aria-label*="move"]'
+  ];
+
+  const pieces = [];
+  for (const selector of selectors) {
+    document.querySelectorAll(selector).forEach((node) => {
+      const text = node.textContent || '';
+      const matches = text.match(/(?:\b[1-9][0-9]*\.|\b[A-Za-z][1-9]\b|\bO-O\b|\bQh7\b|\bNf3\b|\bKd2\b|\bexd5\b|\bBxc6\b|\bRxf7\b)/g);
+      if (matches) pieces.push(...matches);
+    });
+  }
+
+  const text = document.body?.innerText || '';
+  const broadMatches = text.match(/[A-Za-z][a-z]?[1-9][0-9]*|O-O(?:-O)?|[KQRBNP]?[a-h]?[1-8]x?[a-h][1-8]|[KQRBNP]?[a-h][1-8][+#]?/g);
+  if (broadMatches) pieces.push(...broadMatches);
+
+  return sanitizeMoves(pieces);
+}
+
+function emitTrackedState() {
+  const fen = lookupBoardState();
+  const moves = lookupMoveHistory();
+
+  chrome.runtime.sendMessage({
+    type: 'TRACK_STATE',
+    fen,
+    moves
+  });
+}
+
+if (chrome?.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === 'REQUEST_STATE') {
+      emitTrackedState();
+      sendResponse({ ok: true });
+    }
+  });
+}
+
+const observer = new MutationObserver(() => {
+  emitTrackedState();
+});
+
+observer.observe(document.body || document.documentElement, {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  characterData: true
+});
+
+emitTrackedState();

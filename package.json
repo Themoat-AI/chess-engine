@@ -1,0 +1,18 @@
+{
+  "name": "chess-engine-live-tracker",
+  "version": "1.0.0",
+  "description": "A full chess engine with a browser extension that captures live game states.",
+  "type": "module",
+  "main": "src/chess-engine.js",
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/chess-engine.js"
+  },
+  "keywords": [
+    "chess",
+    "engine",
+    "browser-extension",
+    "live-tracking"
+  ],
+  "license": "MIT"
+}

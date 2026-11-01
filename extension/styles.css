@@ -1,0 +1,39 @@
+async function loadState() {
+  const response = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
+  const { fen = '', moves = [], trackingEnabled = true, lastUpdated = null } = response || {};
+
+  const statusText = document.getElementById('status');
+  const fenText = document.getElementById('fen');
+  const movesList = document.getElementById('moves');
+
+  statusText.textContent = trackingEnabled
+    ? `Tracking active${lastUpdated ? ' · updated ' + new Date(lastUpdated).toLocaleTimeString() : ''}`
+    : 'Tracking paused';
+
+  fenText.textContent = fen || 'No FEN detected';
+  movesList.innerHTML = '';
+  if (moves.length === 0) {
+    const item = document.createElement('li');
+    item.textContent = 'No move history available yet';
+    movesList.appendChild(item);
+    return;
+  }
+
+  moves.forEach((move) => {
+    const item = document.createElement('li');
+    item.textContent = move;
+    movesList.appendChild(item);
+  });
+}
+
+document.getElementById('refresh').addEventListener('click', () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const activeTab = tabs[0];
+    if (!activeTab) return;
+    chrome.tabs.sendMessage(activeTab.id, { type: 'REQUEST_STATE' }, () => {
+      setTimeout(loadState, 250);
+    });
+  });
+});
+
+loadState();
